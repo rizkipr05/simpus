@@ -15,7 +15,14 @@ const app = express();
 
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin(origin, callback) {
+      if (!origin || config.corsOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} tidak diizinkan oleh CORS`));
+    },
     credentials: true,
   })
 );
