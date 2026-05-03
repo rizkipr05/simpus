@@ -30,4 +30,7 @@ COPY --from=build /app/dist ./dist
 
 EXPOSE 5173
 
+HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=10 \
+  CMD curl -fsS http://127.0.0.1:5173 >/dev/null || exit 1
+
 CMD ["serve", "-s", "dist", "-l", "5173"]
