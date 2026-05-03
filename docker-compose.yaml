@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  couchdb:
+    image: couchdb:3
+    restart: unless-stopped
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:-passwordkuaman}
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+    ports:
+      - "5984:5984"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - couchdb
+    environment:
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-ganti_secret_yang_aman}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      COUCHDB_URL: http://${COUCHDB_USER:-admin}:${COUCHDB_PASSWORD:-passwordkuaman}@couchdb:5984
+      COUCHDB_RECORDS_DB: ${COUCHDB_RECORDS_DB:-simpus_records}
+      COUCHDB_AUTH_DB: ${COUCHDB_AUTH_DB:-simpus_auth}
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api}
+        VITE_REMOTE_DB_URL: ${VITE_REMOTE_DB_URL:-}
+        VITE_COUCHDB_URL: ${VITE_COUCHDB_URL:-http://localhost:5984}
+        VITE_COUCHDB_DB_NAME: ${VITE_COUCHDB_DB_NAME:-simpus_records}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+volumes:
+  couchdb_data:
+
