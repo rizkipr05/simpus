@@ -11,6 +11,12 @@ services:
       - couchdb_data:/opt/couchdb/data
     ports:
       - "5984:5984"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5984/_up | grep -q '\"status\":\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   backend:
     build:
@@ -18,7 +24,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      - couchdb
+      couchdb:
+        condition: service_healthy
     environment:
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET:-ganti_secret_yang_aman}
@@ -28,6 +35,12 @@ services:
       COUCHDB_AUTH_DB: ${COUCHDB_AUTH_DB:-simpus_auth}
     ports:
       - "4000:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/health | grep -q '\"status\":\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   frontend:
     build:
@@ -40,10 +53,16 @@ services:
         VITE_COUCHDB_DB_NAME: ${VITE_COUCHDB_DB_NAME:-simpus_records}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "5173:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5173 >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
 volumes:
   couchdb_data:
-
