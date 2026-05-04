@@ -34,4 +34,24 @@ export async function loginRequest(payload) {
   return response.json();
 }
 
+export async function healthCheckRequest() {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/health`, {
+      method: "GET",
+      cache: "no-store",
+    });
+  } catch (error) {
+    error.isNetworkError = true;
+    throw error;
+  }
+
+  if (!response.ok) {
+    throw new Error("Backend tidak merespons normal.");
+  }
+
+  return response.json();
+}
+
 export { API_BASE_URL };

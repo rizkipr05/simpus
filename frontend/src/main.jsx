@@ -13,6 +13,11 @@ if ("serviceWorker" in navigator) {
       return;
     }
 
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      console.warn("Mode offline penuh memerlukan HTTPS agar service worker bisa aktif.");
+      return;
+    }
+
     navigator.serviceWorker.register("/sw.js").catch((error) => {
       console.error("Service worker gagal diregistrasi", error);
     });

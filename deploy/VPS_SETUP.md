@@ -153,9 +153,12 @@ Cek dari browser:
 
 - `https://simpus.domainanda.com`
 - `https://simpus.domainanda.com/api/health`
+- pastikan browser tidak lagi menampilkan `Not secure`
+- cek DevTools -> Application -> Service Workers, `sw.js` harus terdaftar
 
 ## 11. Catatan penting
 
 - Saat frontend sync langsung ke CouchDB, endpoint `/couchdb/` harus bisa diakses dari browser.
 - Jika nanti Anda ingin menyembunyikan CouchDB sepenuhnya dari browser, arsitektur sinkronisasi perlu diubah.
 - Password demo `admin123` dan `perawat123` sebaiknya diganti sebelum produksi.
+- Fitur offline penuh hanya aktif di `https://` atau `http://localhost`. Jika frontend dibuka dari `http://domain-anda`, browser akan menolak service worker dan aplikasi tidak bisa dibuka ulang saat internet mati.

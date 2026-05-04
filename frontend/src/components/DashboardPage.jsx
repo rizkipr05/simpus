@@ -1,4 +1,4 @@
-export default function DashboardPage({ patients, records, syncState, online, role }) {
+export default function DashboardPage({ patients, records, syncState, connection, role }) {
   const latestPatients = patients.slice(0, 5);
   const latestRecords = records.slice(0, 5);
   const roleDescription =
@@ -29,11 +29,13 @@ export default function DashboardPage({ patients, records, syncState, online, ro
       <article className="panel summary-card">
         <div className="summary-top">
           <span className="label">Koneksi</span>
-          <span className={`soft-badge ${online ? "soft-badge-online" : "soft-badge-offline"}`}>
-            {online ? "Stabil" : "Terbatas"}
+          <span
+            className={`soft-badge ${connection.ready ? "soft-badge-online" : "soft-badge-offline"}`}
+          >
+            {connection.badge}
           </span>
         </div>
-        <strong>{online ? "Online" : "Offline"}</strong>
+        <strong>{connection.label}</strong>
         <p className="muted">{syncState.detail}</p>
       </article>
 

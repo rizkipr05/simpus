@@ -103,7 +103,7 @@ export async function syncNow(onChange) {
   });
 }
 
-export function watchContinuousSync(onChange) {
+export function watchContinuousSync(onChange, onError) {
   return localDb
     .sync(remoteDb, {
       live: true,
@@ -115,5 +115,6 @@ export function watchContinuousSync(onChange) {
     })
     .on("error", (error) => {
       console.error("Sinkronisasi error", error);
+      onError?.(error);
     });
 }

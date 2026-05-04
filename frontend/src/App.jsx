@@ -11,7 +11,7 @@ import ProfilePage from "./components/ProfilePage";
 import SyncStatusCard from "./components/SyncStatusCard";
 import UserManagementPage from "./components/UserManagementPage";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
-import { loginRequest } from "./lib/api";
+import { healthCheckRequest, loginRequest } from "./lib/api";
 import { offlineUsers } from "./lib/offlineUsers";
 import { clearSession, loadSession, saveSession } from "./lib/session";
 
@@ -88,9 +88,34 @@ export default function App() {
     detail: "Menunggu aktivitas",
     lastSync: "",
   });
+  const [backendReachable, setBackendReachable] = useState(false);
   const [appError, setAppError] = useState("");
   const roleConfig = roleConfigs[session?.user?.role] || roleConfigs.Perawat;
   const canManagePatients = session?.user?.role === "Admin";
+  const offlineReady = window.isSecureContext || window.location.hostname === "localhost";
+  const connection = (() => {
+    if (!online) {
+      return {
+        label: "Offline",
+        badge: "Terbatas",
+        ready: false,
+      };
+    }
+
+    if (!backendReachable) {
+      return {
+        label: "Backend Offline",
+        badge: "Lokal",
+        ready: false,
+      };
+    }
+
+    return {
+      label: "Online",
+      badge: "Stabil",
+      ready: true,
+    };
+  })();
 
   function isValidSession(value) {
     return Boolean(value?.user?.username && value?.user?.role && value?.user?.name);
@@ -121,12 +146,42 @@ export default function App() {
     setUsers(userDocs);
   }
 
+  async function checkBackendAvailability() {
+    if (!navigator.onLine) {
+      setBackendReachable(false);
+      return false;
+    }
+
+    try {
+      await healthCheckRequest();
+      setBackendReachable(true);
+      return true;
+    } catch (error) {
+      if (!error?.isNetworkError) {
+        console.error("Health check backend gagal", error);
+      }
+      setBackendReachable(false);
+      return false;
+    }
+  }
+
   async function runSync() {
     if (!navigator.onLine) {
+      setBackendReachable(false);
       setSyncState((prev) => ({
         ...prev,
         label: "Offline",
         detail: "Data aman di penyimpanan lokal.",
+      }));
+      return;
+    }
+
+    const backendReady = await checkBackendAvailability();
+    if (!backendReady) {
+      setSyncState((prev) => ({
+        ...prev,
+        label: "Backend tidak tersedia",
+        detail: "Data tetap tersimpan lokal. Sinkronisasi menunggu backend aktif kembali.",
       }));
       return;
     }
@@ -152,6 +207,7 @@ export default function App() {
         lastSync: formatDate(new Date().toISOString()),
       });
     } catch (error) {
+      setBackendReachable(false);
       setSyncState((prev) => ({
         ...prev,
         label: "Sinkron gagal",
@@ -186,15 +242,28 @@ export default function App() {
 
     loadDbModule()
       .then(({ watchContinuousSync }) => {
-        syncHandler = watchContinuousSync(() => {
-          setSyncState((prev) => ({
-            ...prev,
-            label: "Sinkron aktif",
-            detail: "Perubahan direplikasi otomatis.",
-            lastSync: formatDate(new Date().toISOString()),
-          }));
-          refreshData();
-        });
+        syncHandler = watchContinuousSync(
+          () => {
+            setBackendReachable(true);
+            setSyncState((prev) => ({
+              ...prev,
+              label: "Sinkron aktif",
+              detail: "Perubahan direplikasi otomatis.",
+              lastSync: formatDate(new Date().toISOString()),
+            }));
+            refreshData();
+          },
+          () => {
+            setBackendReachable(false);
+            setSyncState((prev) => ({
+              ...prev,
+              label: navigator.onLine ? "Backend tidak tersedia" : "Offline",
+              detail: navigator.onLine
+                ? "Perubahan tetap aman di browser. Sinkronisasi akan lanjut saat backend pulih."
+                : "Data aman di penyimpanan lokal.",
+            }));
+          }
+        );
       })
       .catch((error) => {
         console.error("Gagal memulai sinkronisasi", error);
@@ -209,7 +278,21 @@ export default function App() {
   useEffect(() => {
     if (online) {
       runSync();
+      const interval = window.setInterval(() => {
+        checkBackendAvailability();
+      }, 30000);
+
+      return () => {
+        window.clearInterval(interval);
+      };
     }
+
+    setBackendReachable(false);
+    setSyncState((prev) => ({
+      ...prev,
+      label: "Offline",
+      detail: "Data aman di penyimpanan lokal.",
+    }));
   }, [online]);
 
   useEffect(() => {
@@ -451,12 +534,17 @@ export default function App() {
                 : "Ringkasan pelayanan untuk membantu proses pemeriksaan pasien."
             }
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <DashboardPage
             patients={patients}
             records={records}
             syncState={syncState}
-            online={online}
+            connection={connection}
             role={session.user.role}
           />
         </>
@@ -472,7 +560,12 @@ export default function App() {
                 : "Perawat dapat mencari pasien dan membuka riwayat pemeriksaan."
             }
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <PatientsPage
             patients={filteredPatients}
             search={search}
@@ -509,7 +602,12 @@ export default function App() {
               </button>
             }
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <PatientForm
             selectedPatient={selectedPatient}
             onSave={handleSavePatient}
@@ -532,7 +630,12 @@ export default function App() {
               </button>
             }
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <MedicalRecordForm patients={patients} onSave={handleSaveMedicalRecord} />
         </>
       ) : null}
@@ -548,7 +651,12 @@ export default function App() {
               </button>
             }
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <MedicalRecordsPage
             records={records}
             title={recordHistoryTitle}
@@ -563,7 +671,12 @@ export default function App() {
             title="Manage User"
             description="Admin mengelola akun login untuk admin lain maupun perawat."
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <UserManagementPage
             users={users}
             selectedUser={selectedUser}
@@ -580,7 +693,12 @@ export default function App() {
             title="Profil"
             description="Perbarui nama akun dan password dari halaman profil pengguna."
           />
-          <SyncStatusCard online={online} syncState={syncState} onManualSync={runSync} />
+          <SyncStatusCard
+            connection={connection}
+            syncState={syncState}
+            onManualSync={runSync}
+            offlineReady={offlineReady}
+          />
           <ProfilePage session={session} onSave={handleSaveProfile} />
         </>
       ) : null}
