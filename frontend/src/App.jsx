@@ -28,6 +28,19 @@ function loadDbModule() {
   return import("./lib/db");
 }
 
+function createUserDoc(user, updatedBy = "system") {
+  return {
+    _id: `user:${user.username}`,
+    type: "user",
+    id: user.id || `user-${user.username}`,
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    password: user.password,
+    updatedBy,
+  };
+}
+
 const roleConfigs = {
   Admin: {
     panelTitle: "Panel Admin",
@@ -83,12 +96,25 @@ export default function App() {
     return Boolean(value?.user?.username && value?.user?.role && value?.user?.name);
   }
 
+  async function ensureDefaultUsers() {
+    const { listDocuments, putDocument } = await loadDbModule();
+    const existingUsers = await listDocuments("user");
+
+    if (existingUsers.length > 0) {
+      return existingUsers;
+    }
+
+    const defaultUsers = offlineUsers.map((user) => createUserDoc(user));
+    await Promise.all(defaultUsers.map((user) => putDocument(user)));
+    return listDocuments("user");
+  }
+
   async function refreshData() {
     const { listDocuments } = await loadDbModule();
     const [patientDocs, recordDocs, userDocs] = await Promise.all([
       listDocuments("patient"),
       listDocuments("medical-record"),
-      listDocuments("user"),
+      ensureDefaultUsers(),
     ]);
     setPatients(patientDocs);
     setRecords(recordDocs);
@@ -232,6 +258,9 @@ export default function App() {
         );
 
         if (localUser) {
+          const { putDocument } = await loadDbModule();
+          await putDocument(createUserDoc(localUser, localUser.username));
+
           const offlineSession = {
             token: "offline-session",
             user: {
