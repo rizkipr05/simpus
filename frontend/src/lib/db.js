@@ -9,20 +9,49 @@ function normalizeUrl(value) {
   return value ? value.replace(/\/+$/, "") : "";
 }
 
+function isLoopbackHost(hostname) {
+  return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
+}
+
+function shouldIgnoreConfiguredUrl(value) {
+  if (typeof window === "undefined" || !value || isLoopbackHost(window.location.hostname)) {
+    return false;
+  }
+
+  try {
+    return isLoopbackHost(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function getDefaultRemoteDbUrl(recordsDbName) {
+  if (typeof window === "undefined") {
+    return `http://localhost:4000/db/${encodeURIComponent(recordsDbName)}`;
+  }
+
+  const { protocol, hostname, origin } = window.location;
+  if (isLoopbackHost(hostname)) {
+    return `${protocol}//${hostname}:4000/db/${encodeURIComponent(recordsDbName)}`;
+  }
+
+  return `${origin}/couchdb/${encodeURIComponent(recordsDbName)}`;
+}
+
 function buildRemoteDbUrl() {
+  const recordsDbName = import.meta.env.VITE_COUCHDB_DB_NAME || "simpus_records";
   const explicitRemoteUrl = normalizeUrl(import.meta.env.VITE_REMOTE_DB_URL || "");
-  if (explicitRemoteUrl) {
+  if (explicitRemoteUrl && !shouldIgnoreConfiguredUrl(explicitRemoteUrl)) {
     return explicitRemoteUrl;
   }
 
   const couchdbUrl = normalizeUrl(import.meta.env.VITE_COUCHDB_URL || "");
-  const recordsDbName = import.meta.env.VITE_COUCHDB_DB_NAME || "simpus_records";
 
-  if (couchdbUrl) {
+  if (couchdbUrl && !shouldIgnoreConfiguredUrl(couchdbUrl)) {
     return `${couchdbUrl}/${encodeURIComponent(recordsDbName)}`;
   }
 
-  return "http://localhost:4000/db/simpus_records";
+  return getDefaultRemoteDbUrl(recordsDbName);
 }
 
 const REMOTE_DB_URL = buildRemoteDbUrl();

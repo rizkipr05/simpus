@@ -20,7 +20,11 @@ function isAppShellRequest(request) {
 function isBypassedRequest(requestUrl) {
   return (
     requestUrl.origin === self.location.origin &&
-    (requestUrl.pathname.startsWith("/api/") || requestUrl.pathname.startsWith("/couchdb/"))
+    (
+      requestUrl.pathname.startsWith("/api/") ||
+      requestUrl.pathname.startsWith("/couchdb/") ||
+      requestUrl.pathname.startsWith("/db/")
+    )
   );
 }
 

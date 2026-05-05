@@ -1,4 +1,41 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+function normalizeUrl(value) {
+  return value ? value.replace(/\/+$/, "") : "";
+}
+
+function isLoopbackHost(hostname) {
+  return ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(hostname);
+}
+
+function shouldIgnoreConfiguredUrl(value) {
+  if (typeof window === "undefined" || !value || isLoopbackHost(window.location.hostname)) {
+    return false;
+  }
+
+  try {
+    return isLoopbackHost(new URL(value).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function getDefaultApiBaseUrl() {
+  if (typeof window === "undefined") {
+    return "http://localhost:4000/api";
+  }
+
+  const { protocol, hostname, origin } = window.location;
+  if (isLoopbackHost(hostname)) {
+    return `${protocol}//${hostname}:4000/api`;
+  }
+
+  return `${origin}/api`;
+}
+
+const configuredApiBaseUrl = normalizeUrl(import.meta.env.VITE_API_BASE_URL || "");
+const API_BASE_URL =
+  configuredApiBaseUrl && !shouldIgnoreConfiguredUrl(configuredApiBaseUrl)
+    ? configuredApiBaseUrl
+    : getDefaultApiBaseUrl();
 
 export async function loginRequest(payload) {
   let response;
