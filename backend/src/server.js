@@ -31,10 +31,18 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(morgan("dev"));
 
 if (config.useRemoteCouchdb) {
+  const couchdbTarget = new URL(config.couchdbUrl);
+  const proxyTarget = `${couchdbTarget.protocol}//${couchdbTarget.host}`;
+  const proxyAuth =
+    couchdbTarget.username || couchdbTarget.password
+      ? `${decodeURIComponent(couchdbTarget.username)}:${decodeURIComponent(couchdbTarget.password)}`
+      : undefined;
+
   app.use(
     "/couchdb",
     createProxyMiddleware({
-      target: config.couchdbUrl,
+      target: proxyTarget,
+      auth: proxyAuth,
       changeOrigin: true,
       pathRewrite: {
         "^/couchdb": "",
