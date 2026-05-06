@@ -189,6 +189,7 @@ textarea:focus {
 
 .primary-button,
 .secondary-button,
+.danger-button,
 .logout-button,
 .nav-tabs button,
 .table-actions button {
@@ -207,6 +208,7 @@ textarea:focus {
 }
 
 .secondary-button,
+.danger-button,
 .table-actions button,
 .nav-tabs button,
 .logout-button {
@@ -216,11 +218,24 @@ textarea:focus {
 
 .primary-button:hover,
 .secondary-button:hover,
+.danger-button:hover,
 .logout-button:hover,
 .nav-tabs button:hover,
 .table-actions button:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 
 .demo-note {
@@ -557,6 +572,12 @@ th {
 .record-list {
   display: grid;
   gap: 14px;
+}
+
+.record-card-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
 }
 
 .profile-summary {

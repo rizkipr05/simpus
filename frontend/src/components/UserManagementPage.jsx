@@ -11,8 +11,10 @@ export default function UserManagementPage({
   users,
   selectedUser,
   onEdit,
+  onDelete,
   onSave,
   onCancelEdit,
+  activeUsername,
 }) {
   const [form, setForm] = useState(emptyForm);
 
@@ -128,6 +130,14 @@ export default function UserManagementPage({
                     <div className="table-actions">
                       <button type="button" onClick={() => onEdit(user)}>
                         Edit
+                      </button>
+                      <button
+                        className="danger-button"
+                        type="button"
+                        onClick={() => onDelete(user)}
+                        disabled={user.username === activeUsername}
+                      >
+                        Hapus
                       </button>
                     </div>
                   </td>

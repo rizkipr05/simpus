@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import ExpressPouchDB from "express-pouchdb";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import authRoutes from "./routes/authRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
 import medicalRecordRoutes from "./routes/medicalRecordRoutes.js";
@@ -28,6 +29,20 @@ app.use(
 );
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(morgan("dev"));
+
+if (config.useRemoteCouchdb) {
+  app.use(
+    "/couchdb",
+    createProxyMiddleware({
+      target: config.couchdbUrl,
+      changeOrigin: true,
+      pathRewrite: {
+        "^/couchdb": "",
+      },
+    })
+  );
+}
+
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {

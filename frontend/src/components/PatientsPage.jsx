@@ -4,6 +4,7 @@ export default function PatientsPage({
   onSearchChange,
   onEdit,
   onOpenHistory,
+  onDelete,
   onGoToCreate,
   canManage,
 }) {
@@ -68,6 +69,11 @@ export default function PatientsPage({
                     <button type="button" onClick={() => onOpenHistory(patient._id)}>
                       Riwayat
                     </button>
+                    {canManage ? (
+                      <button className="danger-button" type="button" onClick={() => onDelete(patient)}>
+                        Hapus
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

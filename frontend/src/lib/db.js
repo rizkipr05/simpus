@@ -95,6 +95,30 @@ export async function putDocument(doc) {
   }
 }
 
+export async function deleteDocument(docOrId) {
+  const current =
+    typeof docOrId === "string" ? await localDb.get(docOrId) : await localDb.get(docOrId._id);
+  await localDb.remove(current);
+}
+
+export async function deleteDocuments(docs) {
+  if (!docs.length) {
+    return;
+  }
+
+  const removableDocs = await Promise.all(
+    docs.map(async (doc) => {
+      const current = await localDb.get(doc._id);
+      return {
+        ...current,
+        _deleted: true,
+      };
+    })
+  );
+
+  await localDb.bulkDocs(removableDocs);
+}
+
 export async function listDocuments(type) {
   await ensureIndexes();
   const result = await localDb.find({

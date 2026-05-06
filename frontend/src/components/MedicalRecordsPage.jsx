@@ -1,4 +1,10 @@
-export default function MedicalRecordsPage({ records, title = "Riwayat Pemeriksaan", description }) {
+export default function MedicalRecordsPage({
+  records,
+  title = "Riwayat Pemeriksaan",
+  description,
+  onDelete,
+  canDelete = false,
+}) {
   return (
     <section className="panel">
       <div className="panel-header">
@@ -18,7 +24,14 @@ export default function MedicalRecordsPage({ records, title = "Riwayat Pemeriksa
                 <strong>{record.patientName || "Pasien tidak diketahui"}</strong>
                 <span>{record.visitDate}</span>
               </div>
-              <small>{new Date(record.updatedAt).toLocaleString("id-ID")}</small>
+              <div className="record-card-actions">
+                <small>{new Date(record.updatedAt).toLocaleString("id-ID")}</small>
+                {canDelete ? (
+                  <button className="danger-button" type="button" onClick={() => onDelete(record)}>
+                    Hapus
+                  </button>
+                ) : null}
+              </div>
             </div>
             <p>
               <strong>Keluhan:</strong> {record.complaint}

@@ -408,6 +408,56 @@ export default function App() {
     setActivePage("record-history");
   }
 
+  async function handleDeletePatient(patient) {
+    const confirmed = window.confirm(
+      `Hapus pasien ${patient.name} beserta seluruh riwayat pemeriksaannya?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const { deleteDocument, deleteDocuments, listRecordsByPatient } = await loadDbModule();
+    const patientRecords = await listRecordsByPatient(patient._id);
+
+    if (patientRecords.length > 0) {
+      await deleteDocuments(patientRecords);
+    }
+
+    await deleteDocument(patient);
+
+    if (selectedPatient?._id === patient._id) {
+      setSelectedPatient(null);
+    }
+
+    await refreshData();
+    await runSync();
+    setActivePage("patients");
+  }
+
+  async function handleDeleteMedicalRecord(record) {
+    const confirmed = window.confirm(
+      `Hapus rekam medis ${record.patientName || "pasien"} tanggal ${record.visitDate}?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const { deleteDocument } = await loadDbModule();
+    await deleteDocument(record);
+    await refreshData();
+    await runSync();
+
+    if (record.patientId) {
+      const remainingPatient = patients.find((item) => item._id === record.patientId);
+      if (remainingPatient && recordHistoryTitle !== "Seluruh Riwayat Pemeriksaan") {
+        await handleOpenHistory(record.patientId);
+        return;
+      }
+    }
+
+    await handleOpenAllHistory();
+  }
+
   async function handleOpenHistory(patientId) {
     const { listRecordsByPatient } = await loadDbModule();
     const patientRecords = await listRecordsByPatient(patientId);
@@ -440,6 +490,29 @@ export default function App() {
     });
 
     setSelectedUser(null);
+    await refreshData();
+    await runSync();
+    setActivePage("users");
+  }
+
+  async function handleDeleteUser(user) {
+    if (user.username === session.user.username) {
+      window.alert("Akun yang sedang aktif tidak bisa dihapus.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Hapus akun ${user.name} (${user.username})?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const { deleteDocument } = await loadDbModule();
+    await deleteDocument(user);
+
+    if (selectedUser?._id === user._id) {
+      setSelectedUser(null);
+    }
+
     await refreshData();
     await runSync();
     setActivePage("users");
@@ -575,6 +648,7 @@ export default function App() {
               setActivePage("patient-form");
             }}
             onOpenHistory={handleOpenHistory}
+            onDelete={handleDeletePatient}
             onGoToCreate={() => {
               setSelectedPatient(null);
               setActivePage("patient-form");
@@ -661,6 +735,8 @@ export default function App() {
             records={records}
             title={recordHistoryTitle}
             description="Riwayat pemeriksaan pasien tersimpan lokal dan dapat dibuka kembali kapan saja."
+            onDelete={handleDeleteMedicalRecord}
+            canDelete={canManagePatients}
           />
         </>
       ) : null}
@@ -681,8 +757,10 @@ export default function App() {
             users={users}
             selectedUser={selectedUser}
             onEdit={(user) => setSelectedUser(user)}
+            onDelete={handleDeleteUser}
             onSave={handleSaveUser}
             onCancelEdit={() => setSelectedUser(null)}
+            activeUsername={session.user.username}
           />
         </>
       ) : null}
