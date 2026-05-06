@@ -1,29 +1,70 @@
 # SIMPUS Offline-First
 
-Sistem Informasi Manajemen Puskesmas berbasis offline-first dengan:
+Panduan ini menjelaskan cara menjalankan proyek ini di lokal, mulai dari database CouchDB, backend, sampai frontend.
 
-- Frontend: React + Vite + PWA + PouchDB/IndexedDB
-- Backend: Node.js + Express
-- Server database: CouchDB
-- Sinkronisasi: replikasi dua arah PouchDB ↔ CouchDB
+## Ringkasan Arsitektur
 
-## Struktur
+- `frontend`: React + Vite
+- `backend`: Node.js + Express
+- `database`: CouchDB
+- `sinkronisasi`: frontend menyimpan data ke PouchDB lokal browser lalu sync ke CouchDB
 
-- `frontend`: aplikasi React untuk admin/perawat
-- `backend`: API autentikasi, session, dan database sync endpoint
+Port default:
 
-## Fitur utama
+- frontend: `5173`
+- backend: `4000`
+- CouchDB: `5984`
 
-- Login pengguna
-- Pendaftaran pasien offline
-- Rekam medis offline
-- Riwayat pemeriksaan pasien
-- Sinkronisasi dua arah saat online
-- Penanganan konflik dasar berbasis timestamp terbaru
+## Prasyarat
 
-## Menjalankan CouchDB
+Pastikan lokal Anda sudah punya:
 
-Contoh cepat dengan Docker:
+- Node.js 20+ dan npm
+- Docker dan Docker Compose
+
+Jika ingin menjalankan tanpa Docker untuk backend/frontend, Docker tetap disarankan minimal untuk CouchDB.
+
+## Opsi 1: Jalankan Paling Cepat dengan Docker Compose
+
+Cara ini paling cepat kalau ingin langsung melihat aplikasi hidup penuh.
+
+### 1. Jalankan semua service
+
+Dari root project:
+
+```bash
+docker compose up --build
+```
+
+Atau jika environment Anda memakai nama file `docker-compose.yaml` secara eksplisit:
+
+```bash
+docker compose -f docker-compose.yaml up --build
+```
+
+### 2. Akses aplikasi
+
+- frontend: `http://localhost:5173`
+- backend health check: `http://localhost:4000/api/health`
+- CouchDB: `http://localhost:5984`
+
+### 3. Stop service
+
+```bash
+docker compose down
+```
+
+Jika ingin ikut menghapus volume CouchDB:
+
+```bash
+docker compose down -v
+```
+
+## Opsi 2: Setup Lokal Manual
+
+Opsi ini cocok kalau Anda ingin menjalankan frontend dan backend langsung dengan `npm`, lalu database CouchDB tetap memakai Docker.
+
+## 1. Jalankan CouchDB
 
 ```bash
 docker run -d \
@@ -34,63 +75,229 @@ docker run -d \
   couchdb:3
 ```
 
-CouchDB akan aktif di `http://127.0.0.1:5984`.
+Verifikasi:
 
-Pastikan CORS di CouchDB mengizinkan origin frontend jika frontend melakukan sinkronisasi langsung ke CouchDB.
+```bash
+curl http://admin:password@127.0.0.1:5984/
+```
 
-## Menjalankan backend
+Jika berhasil, CouchDB akan mengembalikan JSON dengan field seperti `couchdb`, `version`, dan `vendor`.
+
+## 2. Setup Backend
+
+Masuk ke folder backend:
 
 ```bash
 cd backend
-cp .env.example .env
+```
+
+Install dependency:
+
+```bash
 npm install
+```
+
+Buat file environment dari template:
+
+```bash
+cp .env.example .env
+```
+
+Isi minimal `backend/.env`:
+
+```env
+PORT=4000
+JWT_SECRET=simpus-offline-secret
+CORS_ORIGIN=http://localhost:5173
+COUCHDB_URL=http://admin:password@127.0.0.1:5984
+COUCHDB_RECORDS_DB=simpus_records
+COUCHDB_AUTH_DB=simpus_auth
+```
+
+Jalankan backend:
+
+```bash
 npm run dev
 ```
 
-Backend aktif di `http://localhost:4000`.
+Verifikasi backend:
 
-Jika `COUCHDB_URL` diisi, backend akan memakai CouchDB untuk:
+```bash
+curl http://127.0.0.1:4000/api/health
+```
 
-- database user/login (`simpus_auth`)
-- database data pasien dan rekam medis (`simpus_records`)
+Respons yang benar:
 
-Jika `COUCHDB_URL` kosong, backend fallback ke penyimpanan PouchDB lokal dan tetap membuka endpoint `/db`.
+```json
+{"status":"ok","timestamp":"...","database":"couchdb"}
+```
 
-## Menjalankan frontend
+## 3. Setup Frontend
+
+Masuk ke folder frontend:
 
 ```bash
 cd frontend
-cp .env.example .env
+```
+
+Install dependency:
+
+```bash
 npm install
+```
+
+Buat file environment dari template:
+
+```bash
+cp .env.example .env
+```
+
+Isi minimal `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:4000/api
+VITE_REMOTE_DB_URL=
+VITE_COUCHDB_URL=http://admin:password@127.0.0.1:5984
+VITE_COUCHDB_DB_NAME=simpus_records
+```
+
+Jalankan frontend:
+
+```bash
 npm run dev
 ```
 
-Frontend aktif di `http://localhost:5173`.
+Buka:
 
-Frontend memakai:
+```text
+http://localhost:5173
+```
 
-- `PouchDB` lokal di browser (`IndexedDB`)
-- replikasi ke CouchDB dari `VITE_COUCHDB_URL/VITE_COUCHDB_DB_NAME`
-- fallback ke `VITE_REMOTE_DB_URL` bila ingin tetap sync ke endpoint Couch-compatible lain
+## Akun Login Demo
 
-## Akun demo
+User awal disediakan oleh backend saat start pertama:
 
-- Admin: `admin` / `admin123`
-- Perawat: `perawat` / `perawat123`
+- Admin
+  - username: `admin`
+  - password: `admin123`
+- Perawat
+  - username: `perawat`
+  - password: `perawat123`
 
-## Catatan arsitektur
+Sumber user demo ada di [backend/src/users.js](/home/rizky/Documents/simpus/backend/src/users.js).
 
-- Data aplikasi disimpan dulu ke PouchDB lokal browser.
-- Saat online, frontend melakukan `sync()` ke database `simpus_records` di CouchDB.
-- Backend juga membaca dan menulis dokumen ke CouchDB yang sama, sehingga API dan replikasi berbagi sumber data.
-- Saat `COUCHDB_URL` tidak diisi, backend menyediakan endpoint CouchDB-compatible melalui `express-pouchdb` pada path `/db`.
-- Konflik data ditangani dengan memilih dokumen dengan `updatedAt` paling baru.
+## Verifikasi Koneksi End-to-End
 
-## Build PWA
+Setelah semua hidup, cek:
+
+### 1. Backend ke CouchDB
+
+```bash
+curl http://127.0.0.1:4000/api/health
+```
+
+Field `database` harus bernilai `couchdb`.
+
+### 2. Frontend bisa menjangkau CouchDB
+
+```bash
+curl http://admin:password@127.0.0.1:5984/simpus_records
+```
+
+Jika database belum ada, backend akan membuatnya saat seed/sinkronisasi pertama.
+
+### 3. Uji dari browser
+
+1. Login sebagai `admin`
+2. Tambah 1 pasien
+3. Klik `Sinkronkan Sekarang`
+4. Reload halaman
+5. Pastikan data masih ada
+
+## Struktur Menjalankan Lokal
+
+Kalau dijalankan manual, gunakan 3 terminal:
+
+### Terminal 1
+
+```bash
+docker start -a simpus-couchdb
+```
+
+### Terminal 2
+
+```bash
+cd backend
+npm run dev
+```
+
+### Terminal 3
 
 ```bash
 cd frontend
-npm run build
+npm run dev
 ```
 
-Hasil build bisa di-host sebagai aplikasi web installable.
+## Troubleshooting
+
+### 1. Status `Backend Offline`
+
+Cek:
+
+```bash
+curl http://127.0.0.1:4000/api/health
+```
+
+Jika gagal, backend belum hidup atau env backend salah.
+
+### 2. Error `You are not authorized to access this db`
+
+Biasanya username/password CouchDB di `COUCHDB_URL` atau `VITE_COUCHDB_URL` tidak cocok.
+
+Cek:
+
+```bash
+curl http://admin:password@127.0.0.1:5984/
+curl http://admin:password@127.0.0.1:5984/simpus_records
+```
+
+### 3. Data tidak muncul setelah reload
+
+- klik `Sinkronkan Sekarang`
+- cek console browser
+- cek apakah CouchDB hidup
+- cek apakah service worker/cache browser masih menyimpan state lama
+
+### 4. Ingin reset database lokal browser
+
+Hapus data site lewat DevTools browser:
+
+- `Application`
+- `Storage`
+- `Clear site data`
+
+### 5. Ingin reset CouchDB lokal
+
+Jika memakai Docker Compose:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Jika memakai container manual:
+
+```bash
+docker rm -f simpus-couchdb
+docker run -d \
+  --name simpus-couchdb \
+  -p 5984:5984 \
+  -e COUCHDB_USER=admin \
+  -e COUCHDB_PASSWORD=password \
+  couchdb:3
+```
+
+## Catatan
+
+- Fitur offline penuh di browser paling stabil saat berjalan di `localhost` atau `https`.
+- Untuk produksi/VPS, lihat panduan [deploy/VPS_SETUP.md](/home/rizky/Documents/simpus/deploy/VPS_SETUP.md).
