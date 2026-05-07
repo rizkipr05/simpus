@@ -69,11 +69,6 @@ export default function LoginForm({ onSubmit, error, loading }) {
           </button>
         </form>
 
-        <div className="demo-note">
-          <strong>Akses demo</strong>
-          <span>Admin: admin/admin123</span>
-          <span>Perawat: perawat/perawat123</span>
-        </div>
       </div>
     </div>
   );
