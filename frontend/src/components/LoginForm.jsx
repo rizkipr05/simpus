@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+export default function LoginForm({ onSubmit, error, loading }) {
+  const [form, setForm] = useState({ username: "", password: "" });
 
   return (
     <div className="login-shell">
@@ -67,4 +69,4 @@ import { useState } from "react";
       </div>
     </div>
   );
-
+}
